@@ -150,6 +150,9 @@ export type UpdateOrderOpts = {
 export type OHLCVOptions = {
   readonly symbol: string;
   readonly interval: Timeframe;
+  readonly limit?: number;
+  readonly startTime?: number;
+  readonly endTime?: number;
 };
 
 export type OrderFillEvent = Pick<
