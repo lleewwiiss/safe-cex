@@ -5,6 +5,8 @@ import type {
   OHLCVOptions,
   OrderBook,
   Ticker,
+  Trade,
+  TradesOptions,
   Writable,
 } from '../../types';
 import { jsonParse } from '../../utils/json-parse';
@@ -72,7 +74,7 @@ export class BybitPublicWebsocket extends BaseWebSocket<BybitExchange> {
       const handlers = Object.entries(this.messageHandlers);
 
       for (const [topic, handler] of handlers) {
-        if (data.includes(`topic":"${topic}`)) {
+        if (data.includes(`topic':'${topic}`)) {
           const json = jsonParse(data);
           if (json) handler(json);
           break;
@@ -163,6 +165,50 @@ export class BybitPublicWebsocket extends BaseWebSocket<BybitExchange> {
     return () => {
       delete this.messageHandlers[topic];
       delete this.topics.ohlcv;
+
+      if (this.isConnected) {
+        const payload = { op: 'unsubscribe', args: [topic] };
+        this.ws?.send?.(JSON.stringify(payload));
+      }
+    };
+  };
+
+  listenTrades = (opts: TradesOptions, callback: (trade: Trade) => void) => {
+    const topic = `publicTrade.${opts.symbol}`;
+
+    const waitForConnectedAndSubscribe = () => {
+      if (this.isConnected) {
+        if (!this.isDisposed) {
+          this.messageHandlers[topic] = ({ data: [trade] }: Data) => {
+            callback({
+              timestamp: trade.T / 1000,
+              symbol: trade.s,
+              side: trade.S,
+              size: parseFloat(trade.v),
+              price: parseFloat(trade.p),
+              direction: trade.L,
+              id: trade.i,
+              blockTrade: trade.BT,
+            });
+          };
+
+          const payload = { op: 'subscribe', args: [topic] };
+          this.ws?.send?.(JSON.stringify(payload));
+          this.parent.log(`Switched to [${opts.symbol}]`);
+
+          // store subscribed topic to re-subscribe on reconnect
+          this.topics.trades = topic;
+        }
+      } else {
+        setTimeout(() => waitForConnectedAndSubscribe(), 100);
+      }
+    };
+
+    waitForConnectedAndSubscribe();
+
+    return () => {
+      delete this.messageHandlers[topic];
+      delete this.topics.trades;
 
       if (this.isConnected) {
         const payload = { op: 'unsubscribe', args: [topic] };

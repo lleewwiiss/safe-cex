@@ -157,6 +157,17 @@ export type Candle = {
   readonly volume: number;
 };
 
+export type Trade = {
+  readonly timestamp: number;
+  readonly symbol: string;
+  readonly side: string;
+  readonly size: number;
+  readonly price: number;
+  readonly direction: string;
+  readonly id: string;
+  readonly blockTrade: boolean;
+};
+
 export type PlaceOrderOpts = {
   readonly symbol: string;
   readonly type: OrderType;
@@ -180,6 +191,10 @@ export type OHLCVOptions = {
   readonly limit?: number;
   readonly startTime?: number;
   readonly endTime?: number;
+};
+
+export type TradesOptions = {
+  readonly symbol: string;
 };
 
 export type OrderFillEvent = Pick<
