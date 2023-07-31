@@ -44,6 +44,8 @@ export const ENDPOINTS = {
   SET_POSITION_MODE: '/v5/position/switch-mode',
 };
 
+export const KLINES_LIMIT = 1000;
+
 export const INTERVAL: Record<Timeframe, string> = {
   '1m': '1',
   '3m': '3',
