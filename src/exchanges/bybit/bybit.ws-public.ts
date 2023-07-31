@@ -74,7 +74,7 @@ export class BybitPublicWebsocket extends BaseWebSocket<BybitExchange> {
       const handlers = Object.entries(this.messageHandlers);
 
       for (const [topic, handler] of handlers) {
-        if (data.includes(`topic':'${topic}`)) {
+        if (data.includes(`topic":"${topic}`)) {
           const json = jsonParse(data);
           if (json) handler(json);
           break;
