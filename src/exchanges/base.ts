@@ -149,6 +149,10 @@ export class BaseExchange implements Exchange {
     return () => {};
   };
 
+  listenTrades = (_opts: TradesOptions, _callback: (trade: Trade) => void) => {
+    return () => {};
+  };
+
   listenOrderBook = (
     _symbol: string,
     _callback: (orderBook: OrderBook) => void
