@@ -11,6 +11,8 @@ import type {
   Order,
   OrderBook,
   PlaceOrderOpts,
+  Trade,
+  TradesOptions,
   UpdateOrderOpts,
 } from '../types';
 import { LogSeverity, OrderSide, OrderType } from '../types';
@@ -41,6 +43,7 @@ export interface Exchange {
   fetchOHLCV: (opts: OHLCVOptions) => Promise<Candle[]>;
   listenOHLCV: (o: OHLCVOptions, c: (c: Candle) => void) => () => void;
   listenOrderBook: (s: string, c: (o: OrderBook) => void) => () => void;
+  listenTrades?: (o: TradesOptions, t: (t: Trade) => void) => () => void;
 }
 
 export class BaseExchange implements Exchange {
