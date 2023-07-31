@@ -529,7 +529,9 @@ export class BybitExchange extends BaseExchange {
     );
 
     const arr = results.flatMap((data) =>
-      (Array.isArray(data.result) ? data.result : []).filter((c: any) => c)
+      (Array.isArray(data.result.list) ? data.result.list : []).filter(
+        (c: any) => c
+      )
     );
 
     const withoutDuplicates = uniqBy(arr, 0);
