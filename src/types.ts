@@ -193,10 +193,6 @@ export type OHLCVOptions = {
   readonly endTime?: number;
 };
 
-export type TradesOptions = {
-  readonly symbol: string;
-};
-
 export type OrderFillEvent = Pick<
   Order,
   'amount' | 'price' | 'side' | 'symbol'
