@@ -1,4 +1,4 @@
-import type { OHLCVOptions, Candle, OrderBook } from '../../types';
+import type { OHLCVOptions, Candle, OrderBook, Trade } from '../../types';
 import { v } from '../../utils/get-key';
 import { jsonParse } from '../../utils/json-parse';
 import { calcOrderBookTotal, sortOrderBook } from '../../utils/orderbook';
@@ -138,6 +138,44 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
 
       if (this.isConnected) {
         const payload = { method: 'UNSUBSCRIBE', params: [topic], id: 2 };
+        this.ws?.send?.(JSON.stringify(payload));
+      }
+    };
+  };
+
+  listenTrades = (symbol: string, callback: (trade: Trade) => void) => {
+    const topic = `${symbol.toLowerCase()}@trade`;
+
+    const waitForConnectedAndSubscribe = () => {
+      if (this.isConnected) {
+        if (!this.isDisposed) {
+          this.messageHandlers[topic] = ([trade]: Data) => {
+            callback({
+              timestamp: trade.E / 1000,
+              symbol: trade.s,
+              side: trade.m ? 'Buy' : 'Sell',
+              size: parseFloat(trade.v),
+              price: parseFloat(trade.p),
+              id: trade.i,
+            });
+          };
+
+          const payload = { method: 'SUBSCRIBE', params: [topic], id: 1 };
+          this.ws?.send?.(JSON.stringify(payload));
+          this.parent.log(`Switched to [${symbol}]`);
+        }
+      } else {
+        setTimeout(() => waitForConnectedAndSubscribe(), 100);
+      }
+    };
+
+    waitForConnectedAndSubscribe();
+
+    return () => {
+      delete this.messageHandlers[topic];
+
+      if (this.isConnected) {
+        const payload = { op: 'UNSUBSCRIBE', args: [topic], id: 1 };
         this.ws?.send?.(JSON.stringify(payload));
       }
     };

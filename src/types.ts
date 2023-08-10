@@ -163,9 +163,7 @@ export type Trade = {
   readonly side: string;
   readonly size: number;
   readonly price: number;
-  readonly direction: string;
   readonly id: string;
-  readonly blockTrade: boolean;
 };
 
 export type PlaceOrderOpts = {

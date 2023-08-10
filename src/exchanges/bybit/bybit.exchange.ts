@@ -21,6 +21,7 @@ import type {
   OHLCVOptions,
   UpdateOrderOpts,
   OrderBook,
+  Trade,
 } from '../../types';
 import {
   OrderTimeInForce,
@@ -568,6 +569,13 @@ export class BybitExchange extends BaseExchange {
     callback: (orderBook: OrderBook) => void
   ) => {
     return this.publicWebsocket.listenOrderBook(symbol, callback);
+  };
+
+  listenTrades = (
+    symbol: string,
+    callback: (trade: Trade) => void
+  ) => {
+    return this.publicWebsocket.listenTrades(symbol, callback);
   };
 
   placeOrder = async (opts: PlaceOrderOpts) => {

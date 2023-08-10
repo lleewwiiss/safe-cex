@@ -20,6 +20,7 @@ import type {
   PlaceOrderOpts,
   Position,
   Ticker,
+  Trade,
   UpdateOrderOpts,
 } from '../../types';
 import {
@@ -455,6 +456,10 @@ export class BinanceExchange extends BaseExchange {
 
   listenOHLCV = (opts: OHLCVOptions, callback: (candle: Candle) => void) => {
     return this.publicWebsocket.listenOHLCV(opts, callback);
+  };
+
+  listenTrades = (symbol: string, callback: (trade: Trade) => void) => {
+    return this.publicWebsocket.listenTrades(symbol, callback);
   };
 
   listenOrderBook = (
