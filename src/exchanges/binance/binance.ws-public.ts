@@ -149,14 +149,16 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
     const waitForConnectedAndSubscribe = () => {
       if (this.isConnected) {
         if (!this.isDisposed) {
-          this.messageHandlers[topic] = ([trade]: Data) => {
+          this.messageHandlers.trade = ([json]: Data) => {
+            if (json.s !== symbol) return;
+
             callback({
-              timestamp: trade.E / 1000,
-              symbol: trade.s,
-              side: trade.m ? 'Buy' : 'Sell',
-              size: parseFloat(trade.v),
-              price: parseFloat(trade.p),
-              id: trade.i,
+              timestamp: json.E / 1000,
+              symbol: json.s,
+              side: json.m ? "Buy" : "Sell",
+              size: parseFloat(json.q),
+              price: parseFloat(json.p),
+              id: json.E,
             });
           };
 
@@ -172,7 +174,7 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
     waitForConnectedAndSubscribe();
 
     return () => {
-      delete this.messageHandlers[topic];
+      delete this.messageHandlers.trade;
 
       if (this.isConnected) {
         const payload = { op: 'UNSUBSCRIBE', args: [topic], id: 1 };
