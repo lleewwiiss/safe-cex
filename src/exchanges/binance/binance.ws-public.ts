@@ -162,7 +162,7 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
             });
           };
 
-          const payload = { method: 'SUBSCRIBE', params: [topic], id: 1 };
+          const payload = { method: 'SUBSCRIBE', params: [topic], id: 4 };
           this.ws?.send?.(JSON.stringify(payload));
           this.parent.log(`Switched to [${symbol}]`);
         }
@@ -177,7 +177,7 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
       delete this.messageHandlers.trade;
 
       if (this.isConnected) {
-        const payload = { op: 'UNSUBSCRIBE', args: [topic], id: 1 };
+        const payload = { op: 'UNSUBSCRIBE', args: [topic], id: 4 };
         this.ws?.send?.(JSON.stringify(payload));
       }
     };
