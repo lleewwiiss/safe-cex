@@ -235,9 +235,12 @@ export class BybitExchange extends BaseExchange {
     if (this.accountType === 'UNIFIED') {
       const [firstAccount] = data.result.list || [];
 
+      const upnl = parseFloat(firstAccount.totalPerpUPL);
+      const total = subtract(parseFloat(firstAccount.totalEquity), upnl);
+
       const balance: Balance = {
-        total: parseFloat(firstAccount.totalEquity),
-        upnl: parseFloat(firstAccount.totalPerpUPL),
+        total,
+        upnl,
         used:
           parseFloat(firstAccount.totalMaintenanceMargin) +
           parseFloat(firstAccount.totalInitialMargin),
