@@ -177,10 +177,9 @@ export class BinanceExchange extends BaseExchange {
         ENDPOINTS.BALANCE
       );
 
+      // TOFIX: refactor this without loop
       const usdt = data.find(({ asset }) => asset === 'USDT')!;
-      const busd = data.find(({ asset }) => asset === 'BUSD')!;
-
-      const balances = [usdt, busd].map((margin) => {
+      const balances = [usdt].map((margin: Record<string, string>) => {
         const free = parseFloat(margin.availableBalance);
         const total = parseFloat(margin.balance);
         const upnl = parseFloat(margin.crossUnPnl);
@@ -221,7 +220,7 @@ export class BinanceExchange extends BaseExchange {
         .filter(
           (m) =>
             v(m, 'contractType') === 'PERPETUAL' &&
-            (v(m, 'marginAsset') === 'BUSD' || v(m, 'marginAsset') === 'USDT')
+            v(m, 'marginAsset') === 'USDT'
         )
         .map((m) => {
           const p = m.filters.find(
