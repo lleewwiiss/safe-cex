@@ -155,7 +155,7 @@ export class BinancePublicWebsocket extends BaseWebSocket<BinanceExchange> {
             callback({
               timestamp: json.E / 1000,
               symbol: json.s,
-              side: json.m ? "Buy" : "Sell",
+              side: json.m ? "Sell" : "Buy",
               size: parseFloat(json.q),
               price: parseFloat(json.p),
               id: json.E,
