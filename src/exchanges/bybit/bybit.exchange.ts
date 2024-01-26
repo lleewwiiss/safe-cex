@@ -2,6 +2,7 @@ import type { Axios } from 'axios';
 import rateLimit from 'axios-rate-limit';
 import type { ManipulateType } from 'dayjs';
 import dayjs from 'dayjs';
+import { uniqBy } from 'lodash';
 import omit from 'lodash/omit';
 import orderBy from 'lodash/orderBy';
 import times from 'lodash/times';
@@ -38,6 +39,7 @@ import { createAPI } from './bybit.api';
 import {
   ENDPOINTS,
   INTERVAL,
+  KLINES_LIMIT,
   ORDER_SIDE,
   ORDER_STATUS,
   ORDER_TIME_IN_FORCE,
@@ -473,24 +475,70 @@ export class BybitExchange extends BaseExchange {
     const interval = INTERVAL[opts.interval];
     const [, amount, unit] = opts.interval.split(/(\d+)/);
 
-    const end = dayjs().valueOf();
-    const start = dayjs()
-      .subtract(parseFloat(amount) * 500, unit as ManipulateType)
-      .valueOf();
+    // Default to 500
+    let requiredCandles = opts.limit ?? 500;
 
-    const params = {
-      category: this.accountCategory,
-      symbol: opts.symbol,
-      start,
-      end,
-      interval,
-      limit: 500,
-    };
+    const startTime = opts.startTime
+      ? Math.round(opts.startTime / 1000)
+      : dayjs()
+          .subtract(
+            parseFloat(amount) * requiredCandles,
+            unit as ManipulateType
+          )
+          .unix();
 
-    const { data } = await this.xhr.get(ENDPOINTS.KLINE, { params });
+    // Calculate the number of candles that are going to be fetched
+    if (opts.endTime) {
+      const diff = dayjs
+        .unix(startTime)
+        .diff(
+          dayjs.unix(Math.round(opts.endTime / 1000)),
+          unit as ManipulateType
+        );
+
+      requiredCandles = Math.abs(diff);
+    }
+
+    // Bybit v5 API only allows to fetch 1000 candles at a time
+    // so we need to split the request in multiple calls
+    const totalPages = Math.ceil(requiredCandles / KLINES_LIMIT);
+    let currentStartTime = startTime;
+
+    const results = await mapSeries(
+      times(totalPages, (i) => i),
+      async (page) => {
+        const currentLimit = Math.min(
+          requiredCandles - page * KLINES_LIMIT,
+          KLINES_LIMIT
+        );
+
+        const { data } = await this.xhr.get(ENDPOINTS.KLINE, {
+          params: {
+            category: this.accountCategory,
+            symbol: opts.symbol,
+            interval,
+            start: currentStartTime * 1000,
+            limit: currentLimit,
+          },
+        });
+
+        currentStartTime = dayjs
+          .unix(currentStartTime)
+          .add(currentLimit, unit as ManipulateType)
+          .unix();
+
+        return data;
+      }
+    );
+
+    const arr = results.flatMap((data) =>
+      (Array.isArray(data.result) ? data.result : []).filter((c: any) => c)
+    );
+
+    const withoutDuplicates = uniqBy(arr, 0);
 
     const candles: Candle[] = orderBy(
-      data?.result?.list?.map?.(
+      withoutDuplicates?.map?.(
         ([open_time, open, high, low, close, volume]: string[]) => {
           return {
             timestamp: parseFloat(open_time) / 1000,

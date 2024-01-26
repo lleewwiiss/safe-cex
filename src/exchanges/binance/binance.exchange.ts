@@ -1,10 +1,13 @@
 import type { Axios } from 'axios';
 import rateLimit from 'axios-rate-limit';
+import type { ManipulateType } from 'dayjs';
+import dayjs from 'dayjs';
+import { orderBy, uniqBy } from 'lodash';
 import chunk from 'lodash/chunk';
 import groupBy from 'lodash/groupBy';
 import omit from 'lodash/omit';
 import times from 'lodash/times';
-import { forEachSeries } from 'p-iteration';
+import { forEachSeries, mapSeries } from 'p-iteration';
 
 import type { Store } from '../../store/store.interface';
 import type {
@@ -20,11 +23,11 @@ import type {
   UpdateOrderOpts,
 } from '../../types';
 import {
-  OrderTimeInForce,
-  PositionSide,
   OrderSide,
   OrderStatus,
+  OrderTimeInForce,
   OrderType,
+  PositionSide,
 } from '../../types';
 import { v } from '../../utils/get-key';
 import { inverseObj } from '../../utils/inverse-obj';
@@ -36,10 +39,11 @@ import { BaseExchange } from '../base';
 
 import { createAPI } from './binance.api';
 import {
-  ORDER_TYPE,
-  ORDER_SIDE,
-  POSITION_SIDE,
   ENDPOINTS,
+  KLINES_LIMIT,
+  ORDER_SIDE,
+  ORDER_TYPE,
+  POSITION_SIDE,
   TIME_IN_FORCE,
 } from './binance.types';
 import { BinancePrivateWebsocket } from './binance.ws-private';
@@ -269,7 +273,7 @@ export class BinanceExchange extends BaseExchange {
         ENDPOINTS.TICKERS_PRICE
       );
 
-      const tickers: Ticker[] = books.reduce((acc: Ticker[], book) => {
+      return books.reduce((acc: Ticker[], book) => {
         const market = this.store.markets.find((m) => m.symbol === book.symbol);
 
         const daily = dailys.find((d) => d.symbol === book.symbol)!;
@@ -294,8 +298,6 @@ export class BinanceExchange extends BaseExchange {
 
         return [...acc, ticker];
       }, []);
-
-      return tickers;
     } catch (err: any) {
       this.emitter.emit('error', err?.response?.data?.msg || err?.message);
       return this.store.tickers;
@@ -352,7 +354,7 @@ export class BinanceExchange extends BaseExchange {
     );
 
     const orders: Order[] = data.map((o) => {
-      const order = {
+      return {
         id: v(o, 'clientOrderId'),
         status: OrderStatus.Open,
         symbol: o.symbol,
@@ -364,23 +366,78 @@ export class BinanceExchange extends BaseExchange {
         filled: parseFloat(v(o, 'executedQty')),
         remaining: subtract(v(o, 'origQty'), v(o, 'executedQty')),
       };
-
-      return order;
     });
 
     return orders;
   };
 
   fetchOHLCV = async (opts: OHLCVOptions) => {
-    const { data } = await this.xhr.get<any[][]>(ENDPOINTS.KLINE, {
-      params: {
-        symbol: opts.symbol,
-        interval: opts.interval,
-        limit: 500,
-      },
-    });
+    const [, amount, unit] = opts.interval.split(/(\d+)/);
 
-    const candles: Candle[] = data.map(
+    // Default to 500
+    let requiredCandles = opts.limit ?? 500;
+
+    const startTime = opts.startTime
+      ? Math.round(opts.startTime / 1000)
+      : dayjs()
+          .subtract(
+            parseFloat(amount) * requiredCandles,
+            unit as ManipulateType
+          )
+          .unix();
+
+    // Calculate the number of candles that are going to be fetched
+    if (opts.endTime) {
+      const diff = dayjs
+        .unix(startTime)
+        .diff(
+          dayjs.unix(Math.round(opts.endTime / 1000)),
+          unit as ManipulateType
+        );
+
+      requiredCandles = Math.abs(diff);
+    }
+
+    // Binance API only allows to fetch 1500 candles at a time
+    // so we need to split the request in multiple calls
+    const totalPages = Math.ceil(requiredCandles / KLINES_LIMIT);
+    let currentStartTime = startTime;
+
+    const results = await mapSeries(
+      times(totalPages, (i) => i),
+      async (page) => {
+        const currentLimit = Math.min(
+          requiredCandles - page * KLINES_LIMIT,
+          KLINES_LIMIT
+        );
+
+        const { data } = await this.xhr.get<any[][]>(ENDPOINTS.KLINE, {
+          params: {
+            symbol: opts.symbol,
+            interval: opts.interval,
+            // Binance startTime must be in milliseconds
+            startTime: currentStartTime * 1000,
+            limit: currentLimit,
+          },
+        });
+
+        currentStartTime = dayjs
+          .unix(currentStartTime)
+          .add(currentLimit, unit as ManipulateType)
+          .unix();
+
+        return data;
+      }
+    );
+
+    const arr = results.flatMap((data) =>
+      (Array.isArray(data) ? data : []).filter((c: any) => c)
+    );
+
+    const withoutDuplicates = uniqBy(arr, 0);
+    const ordered: any[][] = orderBy(withoutDuplicates, [0], ['asc']);
+
+    const candles: Candle[] = ordered.map(
       ([time, open, high, low, close, volume]) => {
         return {
           timestamp: time / 1000,

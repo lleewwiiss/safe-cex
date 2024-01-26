@@ -42,6 +42,8 @@ export const ENDPOINTS = {
   ORDERBOOK: '/fapi/v1/depth',
 };
 
+export const KLINES_LIMIT = 1500;
+
 export const ORDER_TYPE: Record<string, OrderType> = {
   LIMIT: OrderType.Limit,
   MARKET: OrderType.Market,
