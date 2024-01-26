@@ -46,6 +46,7 @@ import {
   ORDER_TYPE,
   POSITION_SIDE,
   TIME_IN_FORCE,
+  KLINES_LIMIT,
 } from './binance.types';
 import { BinancePrivateWebsocket } from './binance.ws-private';
 import { BinancePublicWebsocket } from './binance.ws-public';
